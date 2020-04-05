@@ -17,6 +17,8 @@
 // Load Wi-Fi library
 #include <ESP8266WiFi.h>
 // 
+#include "config.h"
+
 
 /***
  * 
@@ -54,8 +56,8 @@ CRGB leds[NUM_LEDS];
  ***/
 
 // Replace with your network credentials
-const char *ssid = "enter ssis"; // 
-const char *password = "enter password"; //
+const char *ssid = SSID; // 
+const char *password = PWD; //
 
 // Set web server port number to 80
 WiFiServer server(80);
