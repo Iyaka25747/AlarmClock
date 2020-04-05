@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "C:\\Users\\ini\\AppData\\Local\\Arduino15\\packages\\esp8266\\tools\\**",
+                "C:\\Users\\ini\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\**",
+                "C:\\Users\\ini\\Documents\\Arduino\\libraries\\**",
+                "C:\\Users\\ini\\OneDrive\\Documents OneDrive\\Arduino\\libraries",
+                "C:\\Users\\ini\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\2.6.3\\**"
+            ],
+            "forcedInclude": [],
+            "intelliSenseMode": "msvc-x64"
+        }
+    ],
+    "version": 4
+}
