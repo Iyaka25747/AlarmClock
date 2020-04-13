@@ -8,11 +8,10 @@
 // #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
 // #define FASTLED_ESP8266_D1_PIN_ORDER
 
-
 #define LED_BUILT_IN_MODE // Define what is tesed, built in blue LED or a connected stripe of leds,  possbile values: LED_STRIPE_MODE or LED_BUILT_IN_MODE
 
 #include <DNSServer.h> // ESPUI dependency
-#include "ESPUI.h" // UI, see https://github.com/s00500/ESPUI
+#include <ESPUI.h>     // UI, see https://github.com/s00500/ESPUI
 #include <ESP8266WiFi.h>
 
 // Load Library for LED Stripe
@@ -26,7 +25,6 @@ const byte DNS_PORT = 53;
 // IPAddress apIP(172, 22, 22, 1);
 IPAddress apIP(192, 168, 1, 1);
 DNSServer dnsServer;
-
 
 /**
  * 
@@ -59,6 +57,8 @@ const long timeoutTime = 2000;
 // ESPUI config
 // int statusLabelId; // Label
 int millisLabelId; // Label
+int testSwitchId;
+int heureLabelId;
 
 /***
  * LED Stripe settings
@@ -88,12 +88,22 @@ int bilLoop = 0;
 /*
 FUNCTIONS ESPUI
 */
-void textCall(Control *sender, int type)
+void test_textCall1(Control *sender, int type)
 {
     Serial.print("Text: ID: ");
     Serial.print(sender->id);
     Serial.print(", Value: ");
     Serial.println(sender->value);
+}
+
+void textSetAlarmTime(Control *sender, int type)
+{
+    String alarmTime;
+    alarmTime = sender->value;
+    Serial.print("Text: ID: ");
+    Serial.print(sender->id);
+    Serial.print(", Value: ");
+    Serial.println(alarmTime);
 }
 
 /**
@@ -179,6 +189,8 @@ void setup()
             Serial.print(".");
             timeout--;
         } while (timeout && WiFi.status() != WL_CONNECTED);
+        Serial.print("Wifi status: ");
+        Serial.println(WiFi.status());
 
         // not connected -> create hotspot
         if (WiFi.status() != WL_CONNECTED)
@@ -210,11 +222,13 @@ void setup()
 
     // ESPUI Setup
     // statusLabelId = ESPUI.label("Status:", ControlColor::Turquoise, "Stop");
-    // millisLabelId = ESPUI.label("Millis:", ControlColor::Emerald, "0");
+    millisLabelId = ESPUI.label("Millis:", ControlColor::Emerald, "0");
+    heureLabelId = ESPUI.label("Heure", ControlColor::Emerald, "0");
 
-    ESPUI.text("Text Test:", &textCall, ControlColor::Alizarin, "a Text Field");
+    ESPUI.text("Text test call 1:", &test_textCall1, ControlColor::Alizarin, "a Text Field");
+    ESPUI.text("Heure : ", &textSetAlarmTime, ControlColor::Alizarin, "another text");
 
-    ESPUI.begin("ESPUI Control");
+    ESPUI.begin("ESPUI Alarm CLock des NICOs");
 }
 void loop()
 {
@@ -245,15 +259,17 @@ void loop()
 
     static long oldTime = 0;
     static bool testSwitchState = false;
-
+    int heure = 0;
     if (millis() - oldTime > 5000)
     {
-        ESPUI.print(millisLabelId, String(millis()));
+        ESPUI.print(millisLabelId, String(millis())); // show changing time for each loop.
+        // std::string txt = std::to_string(42);
+        ESPUI.print(heureLabelId, "22:00:01");
 
-        ESPUI.addGraphPoint(graphId, random(1, 50));
+        // ESPUI.addGraphPoint(graphId, random(1, 50));
 
         testSwitchState = !testSwitchState;
-        ESPUI.updateSwitcher(testSwitchId, testSwitchState);
+        // ESPUI.updateSwitcher(testSwitchId, testSwitchState);
 
         oldTime = millis();
     }
