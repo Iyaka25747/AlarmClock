@@ -1,6 +1,6 @@
 /***
  * 
- * INI 4.4.2020 : ALARM CLOCK project wwww
+ * INI 4.4.2020 : ALARM CLOCK project
  * 
  ***/
 
@@ -8,46 +8,25 @@
 // #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
 // #define FASTLED_ESP8266_D1_PIN_ORDER
 
+
 #define LED_BUILT_IN_MODE // Define what is tesed, built in blue LED or a connected stripe of leds,  possbile values: LED_STRIPE_MODE or LED_BUILT_IN_MODE
 
-// Load library for Web server UI for better UX
-// #include <ESPUI.h>
+#include <DNSServer.h> // ESPUI dependency
+#include "ESPUI.h" // UI, see https://github.com/s00500/ESPUI
+#include <ESP8266WiFi.h>
+
 // Load Library for LED Stripe
 #include <FastLED.h>
-// Load Wi-Fi library
-#include <ESP8266WiFi.h>
-// 
+
+//  Network Config, do not publish this file
 #include "config.h"
 
+// Network variables
+const byte DNS_PORT = 53;
+// IPAddress apIP(172, 22, 22, 1);
+IPAddress apIP(192, 168, 1, 1);
+DNSServer dnsServer;
 
-/***
- * 
- * This is only used for testing
- * BuiltinLED settings
- * 
- ***/
-unsigned long bilCurrentTime = millis(); // builtIn LED (bil) current time
-unsigned long bilLasttime = 0;
-int bilInterval = 500; // interval between blinking in milliseconds
-bool bilState = HIGH;  // LED is HIGH or LOW
-int bilLoop = 0;
-
-/***
- * 
- * LED Stripe settings
- * 
- ***/
-
-#define LED_STRIPE_PIN 2 // = GPIO2 = D4 PIN on the board
-#define NUM_LEDS 8       // LED stripe with 8 LEDs
-#define BRIGHTNESS 32    // initial value: 64
-#define LED_TYPE WS2813  // LED stripe type connected to board
-#define COLOR_ORDER GRB
-CRGB leds[NUM_LEDS];
-
-// #define UPDATES_PER_SECOND 100
-#define DELAY_BETWEEN_LED_SECOND 250 // org 250
-#define DELAY_BUILTIN_LED_Millis 500
 
 /**
  * 
@@ -56,8 +35,9 @@ CRGB leds[NUM_LEDS];
  ***/
 
 // Replace with your network credentials
-const char *ssid = SSID; // 
+const char *ssid = SSID;    //
 const char *password = PWD; //
+const char *hostname = "espui";
 
 // Set web server port number to 80
 WiFiServer server(80);
@@ -76,9 +56,49 @@ unsigned long previousTime = 0;
 // Define timeout time in milliseconds (example: 2000ms = 2s)
 const long timeoutTime = 2000;
 
+// ESPUI config
+// int statusLabelId; // Label
+int millisLabelId; // Label
+
+/***
+ * LED Stripe settings
+ ***/
+
+#define LED_STRIPE_PIN 2 // = GPIO2 = D4 PIN on the board
+#define NUM_LEDS 8       // LED stripe with 8 LEDs
+#define BRIGHTNESS 32    // initial value: 64
+#define LED_TYPE WS2813  // LED stripe type connected to board
+#define COLOR_ORDER GRB
+CRGB leds[NUM_LEDS];
+
+// #define UPDATES_PER_SECOND 100
+#define DELAY_BETWEEN_LED_SECOND 250 // org 250
+#define DELAY_BUILTIN_LED_Millis 500
+
+/***
+ * This is only used for testing
+ * BuiltinLED settings
+ ***/
+unsigned long bilCurrentTime = millis(); // builtIn LED (bil) current time
+unsigned long bilLasttime = 0;
+int bilInterval = 500; // interval between blinking in milliseconds
+bool bilState = HIGH;  // LED is HIGH or LOW
+int bilLoop = 0;
+
+/*
+FUNCTIONS ESPUI
+*/
+void textCall(Control *sender, int type)
+{
+    Serial.print("Text: ID: ");
+    Serial.print(sender->id);
+    Serial.print(", Value: ");
+    Serial.println(sender->value);
+}
+
 /**
  * 
- * FUNCTIONS
+ * FUNCTIONS LED STRIPE
  * 
  **/
 
@@ -86,7 +106,7 @@ const long timeoutTime = 2000;
 
 void switchBuiltinLED()
 {
-   
+
     bilCurrentTime = millis();
     if (bilCurrentTime - bilLasttime > bilInterval) // if elapsed time more than interval let's tooggle the LED
     {
@@ -125,6 +145,9 @@ void setup()
     Serial.begin(115200);
     delay(1000); // power-up safety delay
 
+    // ESPUI.setVerbosity(Verbosity::VerboseJSON);
+    WiFi.hostname(hostname);
+
 #ifdef LED_BUILT_IN_MODE
     Serial.print("LED BUILTIN MODE is executed, PIN LED Builtin value: ");
     Serial.println(LED_BUILTIN);
@@ -142,25 +165,57 @@ void setup()
     // currentBlending = LINEARBLEND;
 #endif
 
-    // Connect to Wi-Fi network with SSID and password
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
+    // try to connect to existing network
     WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED)
-    {
-        delay(500);
-        Serial.print(".");
-    }
-    // Print local IP address and start web server
-    Serial.println("");
-    Serial.println("WiFi connected.");
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
-    server.begin();
-    Serial.println("Exiting the setup");
-    Serial.println("***");
-}
+    Serial.print("\n\nTry to connect to existing network");
 
+    {
+        uint8_t timeout = 10;
+
+        // Wait for connection, 5s timeout
+        do
+        {
+            delay(500);
+            Serial.print(".");
+            timeout--;
+        } while (timeout && WiFi.status() != WL_CONNECTED);
+
+        // not connected -> create hotspot
+        if (WiFi.status() != WL_CONNECTED)
+        {
+            Serial.print("\n\nCreating hotspot");
+
+            WiFi.mode(WIFI_AP);
+            WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+            WiFi.softAP(ssid);
+
+            timeout = 5;
+
+            do
+            {
+                delay(500);
+                Serial.print(".");
+                timeout--;
+            } while (timeout);
+        }
+    }
+
+    dnsServer.start(DNS_PORT, "*", apIP);
+
+    Serial.println("\n\nWiFi parameters:");
+    Serial.print("Mode: ");
+    Serial.println(WiFi.getMode() == WIFI_AP ? "Station" : "Client");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.getMode() == WIFI_AP ? WiFi.softAPIP() : WiFi.localIP());
+
+    // ESPUI Setup
+    // statusLabelId = ESPUI.label("Status:", ControlColor::Turquoise, "Stop");
+    // millisLabelId = ESPUI.label("Millis:", ControlColor::Emerald, "0");
+
+    ESPUI.text("Text Test:", &textCall, ControlColor::Alizarin, "a Text Field");
+
+    ESPUI.begin("ESPUI Control");
+}
 void loop()
 {
 
@@ -186,123 +241,21 @@ void loop()
     }
 #endif
 
-    // Serial.println("Beginning the WiFi loop ");
-    WiFiClient client = server.available(); // Listen for incoming clients
+    dnsServer.processNextRequest();
 
-    if (client)
-    {                                  // If a new client connects,
-        Serial.println("New Client."); // print a message out in the serial port
-        String currentLine = "";       // make a String to hold incoming data from the client
-        currentTime = millis();
-        previousTime = currentTime;
-        while (client.connected() && currentTime - previousTime <= timeoutTime)
-        { // loop while the client's connected
-            currentTime = millis();
-            if (client.available())
-            {                           // if there's bytes to read from the client,
-                char c = client.read(); // read a byte, then
-                Serial.write(c);        // print it out the serial monitor
-                header += c;
-                if (c == '\n')
-                { // if the byte is a newline character
-                    // if the current line is blank, you got two newline characters in a row.
-                    // that's the end of the client HTTP request, so send a response:
-                    if (currentLine.length() == 0)
-                    {
-                        // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-                        // and a content-type so the client knows what's coming, then a blank line:
-                        client.println("HTTP/1.1 200 OK");
-                        client.println("Content-type:text/html");
-                        client.println("Connection: close");
-                        client.println();
+    static long oldTime = 0;
+    static bool testSwitchState = false;
 
-                        // turns the GPIOs on and off
-                        if (header.indexOf("GET /5/on") >= 0)
-                        {
-                            Serial.println("GPIO 5 on");
-                            output5State = "on";
-                            // digitalWrite(output5, HIGH);
-                        }
-                        else if (header.indexOf("GET /5/off") >= 0)
-                        {
-                            Serial.println("GPIO 5 off");
-                            output5State = "off";
-                            // digitalWrite(output5, LOW);
-                        }
-                        else if (header.indexOf("GET /4/on") >= 0)
-                        {
-                            Serial.println("GPIO 4 on");
-                            output4State = "on";
-                            // digitalWrite(output4, HIGH);
-                        }
-                        else if (header.indexOf("GET /4/off") >= 0)
-                        {
-                            Serial.println("GPIO 4 off");
-                            output4State = "off";
-                            // digitalWrite(output4, LOW);
-                        }
+    if (millis() - oldTime > 5000)
+    {
+        ESPUI.print(millisLabelId, String(millis()));
 
-                        // Display the HTML web page
-                        client.println("<!DOCTYPE html><html>");
-                        client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-                        client.println("<link rel=\"icon\" href=\"data:,\">");
-                        // CSS to style the on/off buttons
-                        // Feel free to change the background-color and font-size attributes to fit your preferences
-                        client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
-                        client.println(".button { background-color: #195B6A; border: none; color: white; padding: 16px 40px;");
-                        client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
-                        client.println(".button2 {background-color: #77878A;}</style></head>");
+        ESPUI.addGraphPoint(graphId, random(1, 50));
 
-                        // Web Page Heading
-                        client.println("<body><h1>ESP8266 Web Server</h1>");
+        testSwitchState = !testSwitchState;
+        ESPUI.updateSwitcher(testSwitchId, testSwitchState);
 
-                        // Display current state, and ON/OFF buttons for GPIO 5
-                        client.println("<p>GPIO 5 - State " + output5State + "</p>");
-                        // If the output5State is off, it displays the ON button
-                        if (output5State == "off")
-                        {
-                            client.println("<p><a href=\"/5/on\"><button class=\"button\">ON</button></a></p>");
-                        }
-                        else
-                        {
-                            client.println("<p><a href=\"/5/off\"><button class=\"button button2\">OFF</button></a></p>");
-                        }
-
-                        // Display current state, and ON/OFF buttons for GPIO 4
-                        client.println("<p>GPIO 4 - State " + output4State + "</p>");
-                        // If the output4State is off, it displays the ON button
-                        if (output4State == "off")
-                        {
-                            client.println("<p><a href=\"/4/on\"><button class=\"button\">ON</button></a></p>");
-                        }
-                        else
-                        {
-                            client.println("<p><a href=\"/4/off\"><button class=\"button button2\">OFF</button></a></p>");
-                        }
-                        client.println("</body></html>");
-
-                        // The HTTP response ends with another blank line
-                        client.println();
-                        // Break out of the while loop
-                        break;
-                    }
-                    else
-                    { // if you got a newline, then clear currentLine
-                        currentLine = "";
-                    }
-                }
-                else if (c != '\r')
-                {                     // if you got anything else but a carriage return character,
-                    currentLine += c; // add it to the end of the currentLine
-                }
-            }
-        }
-        // Clear the header variable
-        header = "";
-        // Close the connection
-        client.stop();
-        Serial.println("Client disconnected.");
-        Serial.println("");
+        oldTime = millis();
     }
 
     switchBuiltinLED();
