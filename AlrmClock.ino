@@ -1,6 +1,6 @@
 /***
  * 
- * INI 4.4.2020 : ALARM CLOCK project
+ * INI 4.4.2020 : ALARM CLOCK project xxx
  * 
  ***/
 
@@ -8,7 +8,7 @@
 // #define FASTLED_ESP8266_NODEMCU_PIN_ORDER
 // #define FASTLED_ESP8266_D1_PIN_ORDER
 
-#define LED_BUILT_IN_MODE // Define what is tesed, built in blue LED or a connected stripe of leds,  possbile values: LED_STRIPE_MODE or LED_BUILT_IN_MODE
+#define TEST_LED_BUILT_IN_MODE // Used to make basic test of hardware and programming IDE. Define what is tested: built in blue LED or a connected stripe of leds,  possbile values: TEST_LED_STRIPE_MODE or TEST_LED_BUILT_IN_MODE
 
 // Load library for Web server UI for better UX
 // #include <ESPUI.h>
@@ -16,9 +16,8 @@
 #include <FastLED.h>
 // Load Wi-Fi library
 #include <ESP8266WiFi.h>
-// 
+//
 #include "config.h"
-
 
 /***
  * 
@@ -56,7 +55,7 @@ CRGB leds[NUM_LEDS];
  ***/
 
 // Replace with your network credentials
-const char *ssid = SSID; // 
+const char *ssid = SSID;    //
 const char *password = PWD; //
 
 // Set web server port number to 80
@@ -82,11 +81,11 @@ const long timeoutTime = 2000;
  * 
  **/
 
-#ifdef LED_BUILT_IN_MODE
+#ifdef TEST_LED_BUILT_IN_MODE
 
 void switchBuiltinLED()
 {
-   
+
     bilCurrentTime = millis();
     if (bilCurrentTime - bilLasttime > bilInterval) // if elapsed time more than interval let's tooggle the LED
     {
@@ -125,13 +124,13 @@ void setup()
     Serial.begin(115200);
     delay(1000); // power-up safety delay
 
-#ifdef LED_BUILT_IN_MODE
+#ifdef TEST_LED_BUILT_IN_MODE
     Serial.print("LED BUILTIN MODE is executed, PIN LED Builtin value: ");
     Serial.println(LED_BUILTIN);
     pinMode(LED_BUILTIN, OUTPUT);
 #endif
 
-#ifdef LED_STRIPE_MODE
+#ifdef TEST_LED_STRIPE_MODE
     Serial.print("LED Stripe MODE is executed. PIN LED Stripe Data LED_STRIPE_PIN value: ");
     Serial.println(LED_STRIPE_PIN);
     Serial.print("Brightness: ");
@@ -164,8 +163,7 @@ void setup()
 void loop()
 {
 
-    // Serial.println("Beginning the loop");
-#ifdef LED_STRIPE_MODE
+#ifdef TEST_LED_STRIPE_MODE
 
     for (int i = 0; i < NUM_LEDS; i++) // Turn on the LED one by one
     {
