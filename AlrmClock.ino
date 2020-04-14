@@ -10,9 +10,11 @@
 
 #define LED_BUILT_IN_MODE // Define what is tesed, built in blue LED or a connected stripe of leds,  possbile values: LED_STRIPE_MODE or LED_BUILT_IN_MODE
 
+#include <string>
 #include <DNSServer.h> // ESPUI dependency
 #include <ESPUI.h>     // UI, see https://github.com/s00500/ESPUI
 #include <ESP8266WiFi.h>
+#include <NTPtimeESP.h> // NTP Time
 
 // Load Library for LED Stripe
 #include <FastLED.h>
@@ -25,6 +27,8 @@ const byte DNS_PORT = 53;
 // IPAddress apIP(172, 22, 22, 1);
 IPAddress apIP(192, 168, 1, 1);
 DNSServer dnsServer;
+NTPtime NTPch("ch.pool.ntp.org");
+strDateTime dateTime;
 
 /**
  * 
@@ -84,6 +88,37 @@ unsigned long bilLasttime = 0;
 int bilInterval = 500; // interval between blinking in milliseconds
 bool bilState = HIGH;  // LED is HIGH or LOW
 int bilLoop = 0;
+
+/* 
+TIME Functions
+  */
+
+String dateTimeToString(strDateTime _dateTime)
+{
+    String text;
+    if (_dateTime.valid)
+    // if (true)
+    {
+        // text = static_cast<char>(_dateTime.year);
+        // text = static_cast<char>(9);
+
+        // char ch = static_cast<char>(i);
+        text = String(_dateTime.year) + "-" + String(_dateTime.month) + "-" + String(_dateTime.day) + "-" +
+               String(_dateTime.dayofWeek) + " " + String(_dateTime.hour) + "H " + String(_dateTime.minute) + "M " +
+               String(_dateTime.second) + "S ";
+
+        return text;
+    }
+    else
+    {
+#ifdef DEBUG_ON
+        Serial.println("Invalid time !!!");
+        Serial.println("");
+
+#endif
+        return "";
+    }
+}
 
 /*
 FUNCTIONS ESPUI
@@ -159,6 +194,7 @@ void setup()
     WiFi.hostname(hostname);
 
 #ifdef LED_BUILT_IN_MODE
+    Serial.println();
     Serial.print("LED BUILTIN MODE is executed, PIN LED Builtin value: ");
     Serial.println(LED_BUILTIN);
     pinMode(LED_BUILTIN, OUTPUT);
@@ -180,7 +216,7 @@ void setup()
     Serial.print("\n\nTry to connect to existing network");
 
     {
-        uint8_t timeout = 10;
+        uint8_t timeout = 15;
 
         // Wait for connection, 5s timeout
         do
@@ -230,6 +266,9 @@ void setup()
 
     ESPUI.begin("ESPUI Alarm CLock des NICOs");
 }
+
+String tmp;
+
 void loop()
 {
 
@@ -272,6 +311,31 @@ void loop()
         // ESPUI.updateSwitcher(testSwitchId, testSwitchState);
 
         oldTime = millis();
+    }
+
+    // first parameter: Time zone in floating point (for India); second parameter: 1 for European summer time; 2 for US daylight saving time; 0 for no DST adjustment; (contributed by viewwer, not tested by me)
+    dateTime = NTPch.getNTPtime(1.0, 1);
+    // std::string tmp;
+
+    // check dateTime.valid before using the returned time
+    // Use "setSendInterval" or "setRecvTimeout" if required
+    if (dateTime.valid)
+    {
+        NTPch.printDateTime(dateTime);
+        // String textee;
+        // textee = strDateTime(dateTime);
+        // Serial.println(textee);
+
+        byte actualHour = dateTime.hour;
+        byte actualMinute = dateTime.minute;
+        byte actualsecond = dateTime.second;
+        int actualyear = dateTime.year;
+        byte actualMonth = dateTime.month;
+        byte actualday = dateTime.day;
+        byte actualdayofWeek = dateTime.dayofWeek;
+
+        Serial.print( "New1: ");
+        Serial.println( dateTimeToString(dateTime) );
     }
 
     switchBuiltinLED();
